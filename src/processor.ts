@@ -1,11 +1,14 @@
-import { Counter } from '@sentio/sdk'
-import { ERC20Processor } from '@sentio/sdk/eth/builtin'
+import { initVanillaRegistryProcessor } from './vanillaRegistryProcessor.js'
+import { EthChainId } from '@sentio/sdk/eth'
 
-const tokenCounter = Counter.register('token')
+const vanillaRegistryAddress = '0x47afdcB2B089C16CEe354811EA1Bbe0DB7c335E9'
+initVanillaRegistryProcessor(
+  vanillaRegistryAddress, 
+  EthChainId.ETHEREUM,
+)
 
-const address = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
-
-ERC20Processor.bind({ address }).onEventTransfer(async (event, ctx) => {
-  const val = event.args.value.scaleDown(18)
-  tokenCounter.add(ctx, val)
-})
+const vanillaRegistryHoleskyAddress = '0x87D5F694fAD0b6C8aaBCa96277DE09451E277Bcf'
+initVanillaRegistryProcessor(
+  vanillaRegistryHoleskyAddress,
+  EthChainId.HOLESKY,
+)
