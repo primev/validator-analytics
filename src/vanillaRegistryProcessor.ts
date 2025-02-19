@@ -54,7 +54,6 @@ export function initVanillaRegistryProcessor(
             withdrawalAddress,
             valBLSPubKey,
             amount,
-            newBalance,
             from_address: ctx.transaction?.from,
         });
     }, undefined, ethconfig, undefined)
