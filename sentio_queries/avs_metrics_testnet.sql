@@ -1,5 +1,5 @@
 SELECT
-    -- (1) Still-registered operators
+    -- (1) Still-registered operators: OperatorRegistered without a later dereg event.
     (
       SELECT COUNT(DISTINCT operator)
       FROM mev_commit_avs
@@ -13,7 +13,7 @@ SELECT
         )
     ) AS registered_operators,
 
-    -- (2) Operators that eventually requested or completed dereg
+    -- (2) Once-registered operators: those that registered and later deregistered.
     (
       SELECT COUNT(DISTINCT operator)
       FROM mev_commit_avs
@@ -27,7 +27,7 @@ SELECT
         )
     ) AS once_registered_operators,
 
-    -- (3) Total registered validators (never requested or completed dereg)
+    -- (3) Total registered validators: ValidatorRegistered events with no subsequent dereg event.
     (
       SELECT COUNT(DISTINCT validatorPubKey)
       FROM mev_commit_avs
@@ -41,10 +41,25 @@ SELECT
         )
     ) AS total_registered_validators,
 
-    -- (4) 32 ETH (in Wei) * number of currently registered validators
+    -- (4) Unique pod owners: distinct podOwner from ValidatorRegistered events (for validators that never deregistered)
     (
-      32000000000000000000
-      *
+      SELECT COUNT(DISTINCT podOwner)
+      FROM mev_commit_avs
+      WHERE eventType = 'ValidatorRegistered'
+        AND chain = '17000'
+        AND podOwner IS NOT NULL
+        AND podOwner <> ''
+        AND validatorPubKey NOT IN (
+          SELECT validatorPubKey
+          FROM mev_commit_avs
+          WHERE eventType IN ('ValidatorDeregistrationRequested', 'ValidatorDeregistered')
+            AND chain = '17000'
+        )
+    ) AS unique_pod_owners,
+
+    -- (5) Total restaked in wei: 32 ETH (in wei) multiplied by the number of still-registered validators.
+    (
+      32000000000000000000 *
       (
         SELECT COUNT(DISTINCT validatorPubKey)
         FROM mev_commit_avs
@@ -59,7 +74,7 @@ SELECT
       )
     ) AS total_restaked_in_wei,
 
-    -- (5) Validators who were once registered but now requested or completed dereg
+    -- (6) Once-registered validators: those that registered and later deregistered.
     (
       SELECT COUNT(DISTINCT validatorPubKey)
       FROM mev_commit_avs
