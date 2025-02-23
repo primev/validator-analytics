@@ -1,5 +1,6 @@
 import { MevCommitAVSProcessor } from "./types/eth/mevcommitavs.js";
 import { EthChainId, EthFetchConfig } from "@sentio/sdk/eth";
+import { SLASH_TABLE_NAME } from "./validatorSlashes.js";
 
 export const TABLE_NAME = "mev_commit_avs";
 
@@ -10,6 +11,9 @@ export const OPERATOR_DEREG_EVENT = "OperatorDeregistered";
 export const VALIDATOR_REGISTERED_EVENT = "ValidatorRegistered";
 export const VALIDATOR_DEREG_REQUESTED_EVENT = "ValidatorDeregistrationRequested";
 export const VALIDATOR_DEREG_EVENT = "ValidatorDeregistered";
+
+export const FROZEN_EVENT = "ValidatorFrozen";
+export const UNFROZEN_EVENT = "ValidatorUnfrozen";
 
 const ethconfig: EthFetchConfig = {
     transaction: true,
@@ -93,4 +97,28 @@ export function initMevCommitAVSProcessor(
             from_address: ctx.transaction?.from,
         });
     }, undefined, ethconfig, undefined)
+    .onEventValidatorFrozen(async (event, ctx) => {
+        const {
+            validatorPubKey,
+            podOwner
+        } = event.args;
+        ctx.eventLogger.emit(SLASH_TABLE_NAME, {
+            eventType: FROZEN_EVENT,
+            validatorPubKey,
+            podOwner,
+            from_address: ctx.transaction?.from,
+        });
+    })
+    .onEventValidatorUnfrozen(async (event, ctx) => {
+        const {
+            validatorPubKey,
+            podOwner
+        } = event.args;
+        ctx.eventLogger.emit(SLASH_TABLE_NAME, {
+            eventType: UNFROZEN_EVENT,
+            validatorPubKey,
+            podOwner,
+            from_address: ctx.transaction?.from,
+        });
+    })
 }

@@ -1,5 +1,6 @@
 import { VanillaRegistryProcessor } from "./types/eth/vanillaregistry.js";
 import { EthChainId, EthFetchConfig } from "@sentio/sdk/eth";
+import { SLASH_TABLE_NAME } from "./validatorSlashes.js";
 
 export const TABLE_NAME = "vanilla_registry_staking";
 
@@ -7,6 +8,8 @@ export const STAKED_EVENT = "Staked";
 export const STAKE_ADDED_EVENT = "StakeAdded";
 export const UNSTAKED_EVENT = "Unstaked";
 export const STAKE_WITHDRAWN_EVENT = "StakeWithdrawn";
+
+export const SLASHED_EVENT = "Slashed";
 
 const ethconfig: EthFetchConfig = {
   transaction: true,
@@ -83,6 +86,24 @@ export function initVanillaRegistryProcessor(
         ctx.eventLogger.emit(TABLE_NAME, {
             eventType: STAKE_WITHDRAWN_EVENT,
             msgSender,
+            withdrawalAddress,
+            valBLSPubKey,
+            amount,
+            from_address: ctx.transaction?.from,
+        });
+    })
+    .onEventSlashed(async (event, ctx) => {
+        const {
+            msgSender,
+            slashReceiver,
+            withdrawalAddress,
+            valBLSPubKey,
+            amount,
+        } = event.args;
+        ctx.eventLogger.emit(SLASH_TABLE_NAME, {
+            eventType: SLASHED_EVENT,
+            msgSender,
+            slashReceiver,
             withdrawalAddress,
             valBLSPubKey,
             amount,

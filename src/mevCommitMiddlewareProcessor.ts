@@ -1,5 +1,6 @@
 import { MevCommitMiddlewareProcessor } from "./types/eth/mevcommitmiddleware.js"
 import { EthChainId, EthFetchConfig } from "@sentio/sdk/eth"
+import { SLASH_TABLE_NAME } from "./validatorSlashes.js";
 
 export const TABLE_NAME = "mev_commit_middleware"
 
@@ -17,6 +18,8 @@ export const VAULT_DEREG_EVENT = "VaultDeregistered"
 export const VAL_RECORD_ADDED_EVENT = "ValRecordAdded"
 export const VALIDATOR_DEREG_REQUESTED_EVENT = "ValidatorDeregistrationRequested"
 export const VAL_RECORD_DELETED_EVENT = "ValRecordDeleted"
+
+export const SLASH_EVENT = "ValidatorSlashed"
 
 const ethConfig: EthFetchConfig = {
   transaction: true,
@@ -146,4 +149,21 @@ export function initMevCommitMiddlewareProcessor(address: string, network: EthCh
         from: ctx.transaction?.from,
       })
     }, undefined, ethConfig)
+
+    .onEventValidatorSlashed(async (event, ctx) => {
+      const { blsPubkey,
+        operator,
+        vault,
+        slashedAmount
+      } = event.args
+      ctx.eventLogger.emit(SLASH_TABLE_NAME, {
+        eventType: SLASH_EVENT,
+        blsPubkey,
+        operator,
+        vault,
+        amount: slashedAmount,
+        from: ctx.transaction?.from,
+      })
+    })
 }
+
