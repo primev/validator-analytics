@@ -1,52 +1,68 @@
+WITH all_slashes AS (
+    SELECT
+        toDate(timestamp) AS slash_day,
+        eventType,
+        amount
+    FROM validator_slashes
+    WHERE chain = '17000'
+),
+days AS (
+    SELECT DISTINCT slash_day AS day
+    FROM all_slashes
+)
 SELECT
-  -- (1) Vanilla slashes: count events where eventType = 'Slashed'
-  (SELECT COUNT(*)
-   FROM validator_slashes
-   WHERE chain = '17000'
-     AND eventType = 'Slashed'
-  ) AS vanilla_slashes,
+    d.day,
 
-  -- (2) AVS freezes: count events where eventType = 'ValidatorFrozen'
-  (SELECT COUNT(*)
-   FROM validator_slashes
-   WHERE chain = '17000'
-     AND eventType = 'ValidatorFrozen'
-  ) AS avs_freezes,
+    /* (1) Count of vanilla slash events (eventType='Slashed') up to d.day */
+    SUM(
+      CASE WHEN s.eventType = 'Slashed'
+             AND s.slash_day <= d.day
+           THEN 1 ELSE 0 END
+    ) AS vanilla_slashes,
 
-  -- (3) Middleware slashes: count events where eventType = 'ValidatorSlashed'
-  (SELECT COUNT(*)
-   FROM validator_slashes
-   WHERE chain = '17000'
-     AND eventType = 'ValidatorSlashed'
-  ) AS middleware_slashes,
+    /* (2) Count of AVS freeze events (eventType='ValidatorFrozen') up to d.day */
+    SUM(
+      CASE WHEN s.eventType = 'ValidatorFrozen'
+             AND s.slash_day <= d.day
+           THEN 1 ELSE 0 END
+    ) AS avs_freezes,
 
-  -- (4) Total slashes: count of vanilla + middleware slashes (exclude AVS freezes)
-  (SELECT COUNT(*)
-   FROM validator_slashes
-   WHERE chain = '17000'
-     AND eventType IN ('Slashed', 'ValidatorSlashed')
-  ) AS total_slashes,
+    /* (3) Count of middleware slashes (eventType='ValidatorSlashed') up to d.day */
+    SUM(
+      CASE WHEN s.eventType = 'ValidatorSlashed'
+             AND s.slash_day <= d.day
+           THEN 1 ELSE 0 END
+    ) AS middleware_slashes,
 
-  -- (5) Vanilla total amount: sum of amounts for eventType = 'Slashed'
-  (SELECT SUM(amount)
-   FROM validator_slashes
-   WHERE chain = '17000'
-     AND eventType = 'Slashed'
-  ) AS vanilla_total_amount,
+    /* (4) Count of vanilla + middleware slashes (exclude 'ValidatorFrozen') */
+    SUM(
+      CASE WHEN s.eventType IN ('Slashed','ValidatorSlashed')
+             AND s.slash_day <= d.day
+           THEN 1 ELSE 0 END
+    ) AS total_slashes,
 
-  -- (6) Middleware total amount: sum of amounts for eventType = 'ValidatorSlashed'
-  (SELECT SUM(amount)
-   FROM validator_slashes
-   WHERE chain = '17000'
-     AND eventType = 'ValidatorSlashed'
-  ) AS middleware_total_amount,
+    /* (5) Sum of amounts for vanilla slashes */
+    SUM(
+      CASE WHEN s.eventType = 'Slashed'
+             AND s.slash_day <= d.day
+           THEN s.amount ELSE 0 END
+    ) AS vanilla_total_amount,
 
-  -- (7) Overall total amount: sum of amounts for vanilla and middleware slashes
-  (SELECT SUM(amount)
-   FROM validator_slashes
-   WHERE chain = '17000'
-     AND eventType IN ('Slashed', 'ValidatorSlashed')
-  ) AS overall_total_amount
+    /* (6) Sum of amounts for middleware slashes */
+    SUM(
+      CASE WHEN s.eventType = 'ValidatorSlashed'
+             AND s.slash_day <= d.day
+           THEN s.amount ELSE 0 END
+    ) AS middleware_total_amount,
 
-FROM validator_slashes
-LIMIT 1;
+    /* (7) Sum of amounts for both vanilla + middleware slashes */
+    SUM(
+      CASE WHEN s.eventType IN ('Slashed','ValidatorSlashed')
+             AND s.slash_day <= d.day
+           THEN s.amount ELSE 0 END
+    ) AS overall_total_amount
+
+FROM days d,
+     all_slashes s
+GROUP BY d.day
+ORDER BY d.day;
